@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kannada Call Helper</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* SETUP */
+  #setup { position: fixed; inset: 0; background: #fff; z-index: 100; overflow-y: auto; padding: 32px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .setup-box { max-width: 400px; width: 100%; }
+  .setup-box h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .setup-box p { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 20px; }
+  .setup-box ol { font-size: 14px; color: #444; padding-left: 20px; line-height: 2.2; margin-bottom: 24px; }
+  .setup-box a { color: #1a73e8; }
+  input[type=text] { width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid #ddd; font-size: 15px; font-family: inherit; margin-bottom: 12px; background: #fafafa; }
+  input[type=text]:focus { outline: none; border-color: #1a73e8; background: #fff; }
+  .err { background: #fce8e6; border-radius: 8px; padding: 10px 14px; color: #c5221f; font-size: 13px; margin-bottom: 10px; display: none; }
+
+  /* TOP BAR */
+  .topbar { background: #1a73e8; color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .topbar-title { font-size: 15px; font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .call-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: rgba(255,255,255,0.2); }
+  .end-btn { font-size: 12px; padding: 5px 12px; border-radius: 20px; background: #d93025; color: #fff; border: none; cursor: pointer; font-weight: 500; }
+
+  /* CONVERSATION FEED */
+  #feed { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+  .bubble { border-radius: 14px; padding: 12px 14px; max-width: 100%; }
+  .bubble-customer { background: #fff; border: 1px solid #e0e0e0; border-bottom-left-radius: 4px; }
+  .bubble-agent { background: #e8f5e9; border: 1px solid #c8e6c9; border-bottom-right-radius: 4px; margin-left: auto; }
+
+  .bubble-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 5px; }
+  .bubble-english { font-size: 17px; font-weight: 500; color: #1a1a1a; line-height: 1.4; }
+  .bubble-kannada { font-size: 12px; color: #999; margin-top: 3px; }
+  .intent-tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #fff3cd; color: #856404; margin-top: 5px; font-weight: 500; }
+
+  .reply-bubble { background: #e8f5e9; border-radius: 14px; border: 1px solid #c8e6c9; padding: 12px 14px; }
+  .reply-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: #2d7a4f; margin-bottom: 5px; }
+  .reply-kn { font-size: 22px; font-weight: 600; color: #1b5e20; line-height: 1.4; }
+  .reply-roman { font-size: 14px; color: #388e3c; font-style: italic; margin-top: 4px; }
+
+  /* STATUS BAR */
+  #statusbar { background: #fff; border-top: 1px solid #e8e8e8; padding: 10px 16px; text-align: center; font-size: 13px; color: #666; flex-shrink: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+
+  /* BOTTOM LISTEN AREA */
+  #bottom { flex-shrink: 0; padding: 12px 16px 20px; background: #fff; border-top: 1px solid #e8e8e8; }
+
+  #listen-btn {
+    width: 100%; padding: 18px; border-radius: 16px; font-size: 18px; font-weight: 600;
+    cursor: pointer; border: none; display: flex; align-items: center; justify-content: center;
+    gap: 10px; transition: transform 0.1s, background 0.2s; letter-spacing: 0.01em;
+  }
+  #listen-btn:active { transform: scale(0.97); }
+  #listen-btn.idle { background: #1e8e3e; color: #fff; }
+  #listen-btn.listening { background: #d93025; color: #fff; animation: pulse 1.4s ease-in-out infinite; }
+  #listen-btn.processing { background: #e8eaed; color: #888; pointer-events: none; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.8} }
+
+  .hint { text-align: center; font-size: 12px; color: #aaa; margin-top: 8px; }
+
+  /* WAVE */
+  .wave { display: inline-flex; align-items: center; gap: 3px; height: 20px; }
+  .wave span { display: inline-block; width: 4px; background: #fff; border-radius: 2px; animation: wv 1s ease-in-out infinite; }
+  .wave span:nth-child(2){animation-delay:.1s}.wave span:nth-child(3){animation-delay:.2s}.wave span:nth-child(4){animation-delay:.3s}.wave span:nth-child(5){animation-delay:.4s}
+  @keyframes wv { 0%,100%{height:4px}50%{height:18px} }
+
+  .spinner-inline { display: inline-block; width: 20px; height: 20px; border: 3px solid #ccc; border-top-color: #1a73e8; border-radius: 50%; animation: sp 0.7s linear infinite; }
+  @keyframes sp { to{transform:rotate(360deg)} }
+
+  /* TYPE FALLBACK */
+  #type-bar { display: none; flex-direction: row; gap: 8px; margin-top: 10px; }
+  #type-bar textarea { flex: 1; min-height: 44px; max-height: 80px; resize: none; border-radius: 12px; padding: 10px 12px; font-size: 14px; border: 1.5px solid #ddd; font-family: inherit; background: #fafafa; }
+  #type-bar textarea:focus { outline: none; border-color: #1a73e8; background: #fff; }
+  #type-send { padding: 10px 16px; border-radius: 12px; background: #1a73e8; color: #fff; border: none; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+
+  .toggle-type { font-size: 12px; color: #1a73e8; background: none; border: none; cursor: pointer; text-align: center; width: 100%; margin-top: 6px; }
+
+  /* INTRO card */
+  .intro-card { background: #e8f0fe; border-radius: 12px; padding: 14px 16px; text-align: center; }
+  .intro-card p { font-size: 14px; color: #3c4ea6; line-height: 1.6; }
+
+  /* big btn shared */
+  .big-btn { width: 100%; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 500; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .big-btn:active { opacity: 0.85; }
+  .btn-blue { background: #1a73e8; color: #fff; }
+  .btn-gray { background: #e8eaed; color: #444; }
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="setup-box">
+    <h1>🎧 Kannada Call Helper</h1>
+    <p>One-time setup. Get your free Google Gemini API key:</p>
+    <ol>
+      <li>Open <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></li>
+      <li>Sign in with Google</li>
+      <li>Tap <strong>"Create API Key"</strong> → Copy it</li>
+      <li>Paste below</li>
+    </ol>
+    <input type="text" id="key-input" placeholder="Paste API key here (AIza...)" />
+    <div class="err" id="key-err"></div>
+    <button class="big-btn btn-blue" onclick="saveKey()">✓ Save & Start</button>
+    <p style="font-size:12px;color:#aaa;margin-top:12px;text-align:center;">Saved only on your phone. Free: 1500 calls/day.</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none; flex-direction:column; height:100dvh;">
+
+  <div class="topbar">
+    <span class="topbar-title">🎧 Kannada Call Helper</span>
+    <div class="topbar-right">
+      <span class="call-badge" id="call-count">0 exchanges</span>
+      <button class="end-btn" onclick="endCall()">End Call</button>
+    </div>
+  </div>
+
+  <div id="feed">
+    <div class="intro-card">
+      <p>📞 New call started<br>Tap <strong>Listen</strong> when customer speaks</p>
+    </div>
+  </div>
+
+  <div id="statusbar">Ready — tap Listen when customer speaks</div>
+
+  <div id="bottom">
+    <button id="listen-btn" class="idle" onclick="handleListenBtn()">
+      <span id="btn-content">🎙 Listen</span>
+    </button>
+    <button class="toggle-type" onclick="toggleTypeBar()" id="type-toggle">⌨️ Can't use mic? Type instead</button>
+    <div id="type-bar">
+      <textarea id="type-input" placeholder="Type what customer said in Kannada or English..."></textarea>
+      <button id="type-send" onclick="sendTyped()">Send</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let apiKey = localStorage.getItem('gk') || '';
+let recog = null, isListening = false, finalTranscript = '';
+let exchangeCount = 0;
+let typeBarOpen = false;
+
+function init() {
+  if (apiKey) showApp();
+}
+
+function saveKey() {
+  const k = document.getElementById('key-input').value.trim();
+  if (!k.startsWith('AIza') || k.length < 30) {
+    const e = document.getElementById('key-err');
+    e.style.display = 'block';
+    e.textContent = 'Invalid key. It should start with "AIza..." — copy it again from AI Studio.';
+    return;
+  }
+  localStorage.setItem('gk', k);
+  apiKey = k;
+  showApp();
+}
+
+function showApp() {
+  document.getElementById('setup').style.display = 'none';
+  const app = document.getElementById('app');
+  app.style.display = 'flex';
+}
+
+function endCall() {
+  if (!confirm('End this call and start fresh?')) return;
+  exchangeCount = 0;
+  updateCount();
+  const feed = document.getElementById('feed');
+  feed.innerHTML = '<div class="intro-card"><p>📞 New call started<br>Tap <strong>Listen</strong> when customer speaks</p></div>';
+  setStatus('Ready — tap Listen when customer speaks');
+  setBtnIdle();
+}
+
+function updateCount() {
+  document.getElementById('call-count').textContent = exchangeCount + ' exchange' + (exchangeCount !== 1 ? 's' : '');
+}
+
+function setStatus(txt) {
+  document.getElementById('statusbar').textContent = txt;
+}
+
+function setBtnIdle() {
+  const btn = document.getElementById('listen-btn');
+  btn.className = 'idle';
+  document.getElementById('btn-content').innerHTML = '🎙 Listen';
+}
+
+function setBtnListening() {
+  const btn = document.getElementById('listen-btn');
+  btn.className = 'listening';
+  document.getElementById('btn-content').innerHTML = '<div class="wave"><span></span><span></span><span></span><span></span><span></span></div> Listening... tap to stop';
+}
+
+function setBtnProcessing() {
+  const btn = document.getElementById('listen-btn');
+  btn.className = 'processing';
+  document.getElementById('btn-content').innerHTML = '<span class="spinner-inline"></span> Translating...';
+}
+
+function handleListenBtn() {
+  if (isListening) { stopListen(); return; }
+  startListen();
+}
+
+function startListen() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    setStatus('⚠ Speech not supported — use Chrome browser on Android');
+    return;
+  }
+  finalTranscript = '';
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recog = new SR();
+  recog.lang = 'kn-IN';
+  recog.interimResults = true;
+  recog.continuous = false;
+
+  recog.onstart = () => {
+    isListening = true;
+    setBtnListening();
+    setStatus('🔴 Listening — customer is speaking...');
+  };
+
+  recog.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    if (interim || final) setStatus('Hearing: ' + (final || interim));
+    if (final) finalTranscript = final;
+  };
+
+  recog.onerror = (e) => {
+    isListening = false;
+    setBtnIdle();
+    const msgs = {
+      'no-speech': '⚠ No speech heard — tap Listen and try again',
+      'not-allowed': '⚠ Mic blocked — allow microphone in Chrome settings',
+      'network': '⚠ Network error — check internet',
+    };
+    setStatus(msgs[e.error] || '⚠ Could not hear — try again');
+  };
+
+  recog.onend = () => {
+    isListening = false;
+    if (finalTranscript) {
+      setBtnProcessing();
+      setStatus('Translating...');
+      callGemini(finalTranscript);
+    } else {
+      setBtnIdle();
+      setStatus('Nothing heard — tap Listen and try again');
+    }
+  };
+
+  recog.start();
+}
+
+function stopListen() {
+  if (recog) recog.stop();
+  isListening = false;
+}
+
+function toggleTypeBar() {
+  typeBarOpen = !typeBarOpen;
+  document.getElementById('type-bar').style.display = typeBarOpen ? 'flex' : 'none';
+  document.getElementById('type-toggle').textContent = typeBarOpen ? '✕ Close keyboard' : '⌨️ Can\'t use mic? Type instead';
+}
+
+function sendTyped() {
+  const txt = document.getElementById('type-input').value.trim();
+  if (!txt) return;
+  document.getElementById('type-input').value = '';
+  setBtnProcessing();
+  setStatus('Translating...');
+  callGemini(txt);
+}
+
+async function callGemini(text) {
+  const prompt = `You are helping a non-Kannada sales agent on a live phone call. A customer spoke.
+
+Input: "${text}"
+
+Respond ONLY with valid JSON, no markdown, no backticks:
+{"english":"Natural English translation of what customer said","intent":"Short label — what does customer want? (e.g. Asking price, Not interested, Wants discount, Wants EMI, Wants callback, Asking delivery, Complaint, Interested)","reply_kannada":"Short polite Kannada reply the agent should say now","reply_roman":"Phonetic pronunciation of reply in Roman script for non-Kannada speaker"}`;
+
+  try {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    const raw = data.candidates[0].content.parts[0].text;
+    const p = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    exchangeCount++;
+    updateCount();
+    addToFeed(text, p);
+    setBtnIdle();
+    setStatus('✓ Done — tap Listen for next question');
+    scrollFeed();
+  } catch(e) {
+    setBtnIdle();
+    setStatus('⚠ Translation failed — check internet. Tap Listen to retry.');
+  }
+}
+
+function addToFeed(original, p) {
+  const feed = document.getElementById('feed');
+
+  // Customer bubble
+  const cb = document.createElement('div');
+  cb.className = 'bubble bubble-customer';
+  cb.innerHTML = `
+    <div class="bubble-label">Customer said</div>
+    <div class="bubble-english">${p.english}</div>
+    <div class="bubble-kannada">${original}</div>
+    <span class="intent-tag">${p.intent}</span>
+  `;
+  feed.appendChild(cb);
+
+  // Reply bubble
+  const rb = document.createElement('div');
+  rb.className = 'reply-bubble';
+  rb.innerHTML = `
+    <div class="reply-label">👇 You say this</div>
+    <div class="reply-kn">${p.reply_kannada}</div>
+    <div class="reply-roman">🔊 ${p.reply_roman}</div>
+  `;
+  feed.appendChild(rb);
+}
+
+function scrollFeed() {
+  const feed = document.getElementById('feed');
+  setTimeout(() => feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' }), 100);
+}
+
+init();
+</script>
+</body>
+</html>
